@@ -1,129 +1,49 @@
-# M357 : Efficacité et Audit Énergétique - Inscription des équipes
+# 📋 Inscription des Équipes — M357 Efficacité et Audit Énergétique
 
-Application web permettant aux équipes (3 ou 4 étudiants) de s'inscrire en choisissant leur thème d'audit. Les données sont automatiquement enregistrées dans **Google Sheets**, avec une page d'administration (`/admin`) pour consulter les inscriptions et exporter la liste au format Excel `.xlsx`.
-
----
-
-## 📁 Structure du projet
-
-- `pages/index.js` — Formulaire public d'inscription (`/`)
-- `pages/admin.js` — Dashboard administrateur protégé par mot de passe (`/admin`)
-- `pages/api/submit.js` — Enregistre une nouvelle équipe dans Google Sheets
-- `pages/api/teams.js` — Récupère la liste des équipes depuis Google Sheets
-- `pages/api/export.js` — Génère et télécharge le fichier `.xlsx` formaté
-- `lib/sheets.js` — Gestionnaire de connexion à Google Sheets (avec mode local hors-ligne automatique)
+> **ENSA Fès — Génie Électrique & Systèmes Intelligents**
 
 ---
 
-## 📊 Colonnes créées dans Google Sheets
+## À propos
 
-| Colonne A | Colonne B | Colonne C | Colonne D | Colonne E | Colonne F | Colonne G | Colonne H |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Date d'inscription** | **ID Equipe** | **Thème** | **Membre 1** | **Membre 2** | **Membre 3** | **Membre 4** | **Email de contact** |
+Cette application web permet aux étudiants du module **M357 : Efficacité et Audit Énergétique** de constituer et d'enregistrer leurs équipes de projet en ligne.
 
----
-
-## ⚙️ Configuration de Google Sheets
-
-Vous pouvez connecter Google Sheets de **deux manières** (au choix) :
-
-### Option 1 : Compte de Service Google Cloud (Recommandé)
-
-1. **Créer une feuille Google Sheets** :
-   - Rendez-vous sur [sheets.new](https://sheets.new).
-   - Récupérez l'identifiant dans l'URL : `https://docs.google.com/spreadsheets/d/`**`<VOTRE_SHEET_ID>`**`/edit`.
-
-2. **Créer un compte de service Google Cloud** :
-   - Allez sur [Google Cloud Console](https://console.cloud.google.com/).
-   - Activez l'API **Google Sheets API** (APIs & Services > Enable APIs).
-   - Créez un compte de service (IAM & Admin > Service Accounts > Create Service Account).
-   - Créez une clé au format JSON (Keys > Add Key > Create new key > JSON) et téléchargez-la.
-
-3. **Partager la feuille Google Sheets** :
-   - Ouvrez votre Google Sheet et cliquez sur **Partager**.
-   - Ajoutez l'adresse email du compte de service (ex: `service-account@projet.iam.gserviceaccount.com`) avec le rôle **Éditeur**.
-
-4. **Variables d'environnement** :
-   Dans `.env.local` (ou dans Vercel > Settings > Environment Variables) :
-   ```env
-   GOOGLE_SHEET_ID=votre_sheet_id
-   GOOGLE_CLIENT_EMAIL=votre_email_service_account
-   GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-   ADMIN_PASSWORD=choisissez_un_mot_de_passe
-   ```
+Chaque équipe choisit un **thème d'audit énergétique** et soumet les noms de ses membres via un formulaire simple. Les inscriptions sont centralisées automatiquement dans une feuille Google Sheets accessible par l'enseignant.
 
 ---
 
-### Option 2 : Google Apps Script Webhook (Sans compte Google Cloud)
+## Pour les étudiants
 
-Si vous ne souhaitez pas créer de projet Google Cloud :
+1. Ouvrez le lien partagé par votre enseignant.
+2. Choisissez un **thème d'audit** pour votre équipe.
+3. Renseignez les **noms des 3 ou 4 membres** de l'équipe.
+4. Ajoutez un email de contact (optionnel).
+5. Cliquez sur **"Valider mon équipe"**.
 
-1. Ouvrez votre feuille Google Sheets.
-2. Cliquez sur **Extensions** > **Apps Script**.
-3. Remplacez le code existant par le script suivant :
-   ```javascript
-   function doPost(e) {
-     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-     if (sheet.getLastRow() === 0) {
-       sheet.appendRow(["Date d'inscription", "ID Equipe", "Thème", "Membre 1", "Membre 2", "Membre 3", "Membre 4", "Email de contact"]);
-     }
-     var data = JSON.parse(e.postData.contents);
-     sheet.appendRow([
-       new Date().toLocaleString("fr-FR"),
-       data.id,
-       data.theme,
-       data.members[0] || "",
-       data.members[1] || "",
-       data.members[2] || "",
-       data.members[3] || "",
-       data.email || ""
-     ]);
-     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
-   }
-
-   function doGet(e) {
-     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-     var rows = sheet.getDataRange().getValues();
-     var teams = [];
-     for (var i = 1; i < rows.length; i++) {
-       var r = rows[i];
-       teams.push({
-         submittedAt: r[0],
-         id: r[1],
-         theme: r[2],
-         members: [r[3], r[4], r[5], r[6]].filter(Boolean),
-         email: r[7]
-       });
-     }
-     return ContentService.createTextOutput(JSON.stringify({ teams: teams })).setMimeType(ContentService.MimeType.JSON);
-   }
-   ```
-4. Cliquez sur **Déployer** > **Nouveau déploiement**.
-5. Type : **Application Web**.
-   - Exécuter en tant que : **Moi**.
-   - Qui a accès : **Tout le monde** (Anyone).
-6. Copiez l'URL fournie et configurez-la dans votre `.env.local` :
-   ```env
-   GOOGLE_SHEET_WEBHOOK_URL=https://script.google.com/macros/s/.../exec
-   ADMIN_PASSWORD=choisissez_un_mot_de_passe
-   ```
+> ⚠️ Chaque équipe ne remplit le formulaire **qu'une seule fois**.
 
 ---
 
-## 💻 Test en local
+## Pour l'enseignant
 
-```bash
-npm install
-npm run dev
-```
+Accédez à la page `/admin` avec votre mot de passe pour :
 
-> **Remarque** : Si aucune clé Google Sheets n'est renseignée dans `.env.local`, l'application active automatiquement un mode local de secours et stocke temporairement les soumissions dans un fichier local pour vous permettre de tester immédiatement à l'adresse [http://localhost:3000](http://localhost:3000).
+- 📊 Consulter le tableau de bord (nombre d'équipes, d'étudiants, inscriptions du jour)
+- 📋 Visualiser la liste complète des équipes inscrites
+- 📥 Télécharger la liste au format **Excel (.xlsx)** prête à partager
+
+Les données sont également disponibles en temps réel dans votre **Google Sheets**.
 
 ---
 
-## 🚀 Déploiement sur Vercel
+## Thèmes d'audit possibles *(exemples)*
 
-1. Rendez-vous sur [vercel.com](https://vercel.com) et connectez votre compte GitHub.
-2. Importez le dépôt `audit-teams`.
-3. Renseignez les variables d'environnement (`GOOGLE_SHEET_ID`, `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` ou `GOOGLE_SHEET_WEBHOOK_URL`, ainsi que `ADMIN_PASSWORD`).
-4. Cliquez sur **Deploy**.
+- Audit énergétique d'un bâtiment industriel
+- Optimisation de l'éclairage d'un campus universitaire
+- Étude de faisabilité d'une installation photovoltaïque
+- Diagnostic énergétique d'un système de climatisation
+- Analyse de la consommation électrique d'un atelier de production
+
+---
+
+*Module M357 · ENSA Fès · Année Universitaire 2025–2026*
