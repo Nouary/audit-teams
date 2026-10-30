@@ -1,29 +1,14 @@
 import Link from "next/link";
+import { LogoIcon, IconForm, IconDashboard } from "./Icons";
 
-export function Logo({ size = 38 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="48" rx="12" fill="#1b241e" />
-      <circle cx="24" cy="24" r="18" stroke="#ffffff" strokeOpacity="0.08" strokeWidth="1" />
-      <path
-        d="M26 9L15 25H24L21 39L33 23H24L26 9Z"
-        fill="#22c55e"
-        stroke="#16a34a"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
-      />
-      <circle cx="13" cy="15" r="1.5" fill="#22c55e" opacity="0.6" />
-      <circle cx="35" cy="33" r="1.5" fill="#22c55e" opacity="0.6" />
-    </svg>
-  );
-}
+export { LogoIcon as Logo };
 
 export default function Navbar({ activeTab = "form" }) {
   return (
     <header className="nav-header">
       <div className="nav-inner">
         <Link href="/" className="nav-brand">
-          <Logo size={38} />
+          <LogoIcon size={38} />
           <div className="brand-text">
             <div className="brand-title">
               <span>M357</span>
@@ -40,7 +25,7 @@ export default function Navbar({ activeTab = "form" }) {
             className={`tab-link ${activeTab === "form" ? "tab-active" : ""}`}
             id="nav-tab-form"
           >
-            <span className="tab-icon">📝</span>
+            <IconForm size={15} className="tab-icon-svg" />
             <span className="tab-label">Inscription</span>
           </Link>
           <Link
@@ -48,7 +33,7 @@ export default function Navbar({ activeTab = "form" }) {
             className={`tab-link ${activeTab === "admin" ? "tab-active" : ""}`}
             id="nav-tab-admin"
           >
-            <span className="tab-icon">📊</span>
+            <IconDashboard size={15} className="tab-icon-svg" />
             <span className="tab-label">Tableau de bord</span>
           </Link>
         </nav>
@@ -97,7 +82,6 @@ export default function Navbar({ activeTab = "form" }) {
           display: flex;
           align-items: center;
           gap: 6px;
-          text-decoration: none !important;
         }
 
         .brand-sep {
@@ -122,7 +106,7 @@ export default function Navbar({ activeTab = "form" }) {
         :global(.tab-link) {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 7px;
           padding: 7px 14px;
           border-radius: 8px;
           font-size: 0.82rem;
@@ -135,7 +119,6 @@ export default function Navbar({ activeTab = "form" }) {
 
         :global(.tab-link:hover) {
           color: #181d1a !important;
-          text-decoration: none !important;
         }
 
         :global(.tab-link.tab-active) {
@@ -143,12 +126,15 @@ export default function Navbar({ activeTab = "form" }) {
           color: #15803d !important;
           font-weight: 600 !important;
           box-shadow: 0 1px 3px rgba(30, 25, 15, 0.08);
-          text-decoration: none !important;
         }
 
-        .tab-icon {
-          font-size: 0.85rem;
-          line-height: 1;
+        :global(.tab-icon-svg) {
+          flex-shrink: 0;
+          transition: transform 0.15s ease;
+        }
+
+        :global(.tab-link.tab-active .tab-icon-svg) {
+          color: #15803d;
         }
 
         @media (max-width: 640px) {

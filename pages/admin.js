@@ -2,10 +2,27 @@ import { useState, useMemo } from "react";
 import Head from "next/head";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import {
+  IconLock,
+  IconRefresh,
+  IconDownload,
+  IconUsers,
+  IconGraduation,
+  IconMail,
+  IconCalendar,
+  IconSearch,
+  IconClose,
+  IconClipboardCheck,
+  IconEmptyBox,
+  IconStar,
+  IconAlert,
+  IconPresentation,
+  IconBulb,
+} from "../components/Icons";
 
-function StatCard({ value, label, icon, sub }) {
+function StatCard({ value, label, icon, sub, highlight = false }) {
   return (
-    <div className="stat-card">
+    <div className={`stat-card ${highlight ? "stat-card-highlight" : ""}`}>
       <div className="stat-icon-wrap">{icon}</div>
       <div className="stat-content">
         <div className="stat-value">{value}</div>
@@ -28,6 +45,10 @@ function StatCard({ value, label, icon, sub }) {
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(30, 25, 15, 0.06);
         }
+        .stat-card-highlight {
+          border-color: #fcd34d;
+          background: #fffdf5;
+        }
         .stat-icon-wrap {
           width: 44px;
           height: 44px;
@@ -36,8 +57,12 @@ function StatCard({ value, label, icon, sub }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.25rem;
+          color: #15803d;
           flex-shrink: 0;
+        }
+        .stat-card-highlight .stat-icon-wrap {
+          background: #fef3c7;
+          color: #b45309;
         }
         .stat-content {
           display: flex;
@@ -71,6 +96,8 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [filterSubject, setFilterSubject] = useState("all"); // 'all' | 'needs' | 'has'
+  const [sortBy, setSortBy] = useState("order"); // 'order' | 'date'
 
   const load = async () => {
     if (!password) return;
@@ -99,33 +126,49 @@ export default function Admin() {
     if (e.key === "Enter") load();
   };
 
-  // Filtered teams based on search query
-  const filteredTeams = useMemo(() => {
-    if (!teams) return [];
-    if (!search.trim()) return teams;
-    const q = search.toLowerCase().trim();
-    return teams.filter((t) => {
-      const themeMatch = (t.theme || "").toLowerCase().includes(q);
-      const emailMatch = (t.email || "").toLowerCase().includes(q);
-      const memberMatch = (t.members || []).some((m) => (m || "").toLowerCase().includes(q));
-      return themeMatch || emailMatch || memberMatch;
-    });
-  }, [teams, search]);
-
   // Computed stats
   const totalTeams = teams?.length ?? 0;
   const totalStudents = teams?.reduce((sum, t) => sum + (t.members?.length || 0), 0) ?? 0;
-  const withEmail = teams?.filter((t) => t.email && t.email.trim()).length ?? 0;
-  const todayCount = teams?.filter((t) => {
-    if (!t.submittedAt) return false;
-    const d = new Date(t.submittedAt);
-    const now = new Date();
-    return (
-      d.getDate() === now.getDate() &&
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear()
-    );
-  }).length ?? 0;
+  const needsSubjectCount = teams?.filter((t) => t.needsSubject || (t.theme || "").toLowerCase().includes("attente")).length ?? 0;
+  const hasSubjectCount = totalTeams - needsSubjectCount;
+  const reservedSlotsCount = teams?.filter((t) => t.presentationOrder).length ?? 0;
+
+  // Filtered and sorted teams
+  const filteredTeams = useMemo(() => {
+    if (!teams) return [];
+    let list = [...teams];
+
+    // Filter by subject status
+    if (filterSubject === "needs") {
+      list = list.filter((t) => t.needsSubject || (t.theme || "").toLowerCase().includes("attente"));
+    } else if (filterSubject === "has") {
+      list = list.filter((t) => !t.needsSubject && !(t.theme || "").toLowerCase().includes("attente"));
+    }
+
+    // Filter by search query
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      list = list.filter((t) => {
+        const themeMatch = (t.theme || "").toLowerCase().includes(q);
+        const emailMatch = (t.email || "").toLowerCase().includes(q);
+        const orderMatch = t.presentationOrder ? `créneau #${t.presentationOrder} passage ${t.presentationOrder} #${t.presentationOrder}`.includes(q) : false;
+        const memberMatch = (t.members || []).some((m) => (m || "").toLowerCase().includes(q));
+        return themeMatch || emailMatch || memberMatch || orderMatch;
+      });
+    }
+
+    // Sort
+    list.sort((a, b) => {
+      if (sortBy === "order") {
+        const orderA = a.presentationOrder || 999;
+        const orderB = b.presentationOrder || 999;
+        if (orderA !== orderB) return orderA - orderB;
+      }
+      return new Date(a.submittedAt) - new Date(b.submittedAt);
+    });
+
+    return list;
+  }, [teams, search, filterSubject, sortBy]);
 
   return (
     <div className="layout">
@@ -149,17 +192,17 @@ export default function Admin() {
               <div className="badge-row">
                 <span className="badge">Espace Enseignant</span>
                 <span className="badge-light">M357 Audit Énergétique</span>
+                <span className="badge-light">Créneaux 1 à 15</span>
               </div>
               <h1 className="header-title">Tableau de bord des inscriptions</h1>
               <p className="header-sub">
-                Visualisez la liste en direct des équipes inscrites, effectuez des recherches et
-                exportez les données vers Excel.
+                Gérez les équipes inscrites, visualisez les créneaux d'ordre de passage choisis et identifiez les équipes qui attendent un sujet de projet.
               </p>
             </div>
 
             <div className="auth-controls">
               <div className="password-input-wrap">
-                <span className="lock-icon">🔒</span>
+                <span className="lock-icon"><IconLock size={15} /></span>
                 <input
                   id="admin-password"
                   type="password"
@@ -184,13 +227,12 @@ export default function Admin() {
                       <span>Chargement...</span>
                     </>
                   ) : teams ? (
-                    <>
-                      <span>↻ Actualiser</span>
-                    </>
+                    <span className="btn-icon-text">
+                      <IconRefresh size={14} />
+                      <span>Actualiser</span>
+                    </span>
                   ) : (
-                    <>
-                      <span>Accéder aux équipes</span>
-                    </>
+                    <span>Accéder aux équipes</span>
                   )}
                 </button>
 
@@ -201,7 +243,8 @@ export default function Admin() {
                     className="btn-export"
                     title="Télécharger la feuille de calcul Excel"
                   >
-                    <span>↓ Exporter Excel</span>
+                    <IconDownload size={15} />
+                    <span>Exporter Excel</span>
                   </button>
                 )}
               </div>
@@ -210,7 +253,7 @@ export default function Admin() {
 
           {error && (
             <div className="alert-error">
-              <span className="alert-icon">!</span>
+              <span className="alert-icon"><IconAlert size={13} /></span>
               <span>{error}</span>
             </div>
           )}
@@ -219,10 +262,10 @@ export default function Admin() {
         {/* Unloaded placeholder hint */}
         {!teams && !loading && !error && (
           <div className="welcome-placeholder">
-            <div className="placeholder-icon">📋</div>
+            <div className="placeholder-icon"><IconClipboardCheck size={38} /></div>
             <div className="placeholder-title">Entrez le mot de passe pour consulter les inscriptions</div>
             <p className="placeholder-sub">
-              Les données sont synchronisées directement depuis le Google Sheet connecté au module M357.
+              Visualisez en temps réel les créneaux réservés par les étudiants et les demandes d'attribution de sujet.
             </p>
           </div>
         )}
@@ -233,68 +276,114 @@ export default function Admin() {
             {/* KPI Stat Cards */}
             <div className="stats-grid">
               <StatCard
+                value={`${reservedSlotsCount} / 15`}
+                label="Créneaux réservés"
+                icon={<IconPresentation size={22} />}
+                sub="Ordres de passage 1 à 15"
+              />
+              <StatCard
                 value={totalTeams}
                 label="Équipes inscrites"
-                icon="👥"
-                sub="Binômes, trinômes & quadrinômes"
+                icon={<IconUsers size={22} />}
+                sub={`${totalStudents} étudiants au total`}
               />
               <StatCard
-                value={totalStudents}
-                label="Étudiants au total"
-                icon="🎓"
-                sub={`Moyenne de ${(totalStudents / (totalTeams || 1)).toFixed(1)} par équipe`}
+                value={needsSubjectCount}
+                label="En attente de sujet"
+                icon={<IconBulb size={22} />}
+                sub="À attribuer par le professeur"
+                highlight={needsSubjectCount > 0}
               />
               <StatCard
-                value={withEmail}
-                label="Contacts renseignés"
-                icon="📧"
-                sub={`${Math.round((withEmail / (totalTeams || 1)) * 100)}% des équipes`}
-              />
-              <StatCard
-                value={todayCount}
-                label="Inscrits aujourd'hui"
-                icon="📅"
-                sub="Nouvelles inscriptions"
+                value={hasSubjectCount}
+                label="Sujets proposés"
+                icon={<IconClipboardCheck size={22} />}
+                sub="Proposés par les étudiants"
               />
             </div>
 
-            {/* Table Container */}
+            {/* Table Card */}
             <div className="table-card">
               <div className="table-top-bar">
-                <div className="table-heading-group">
-                  <h2 className="table-heading">Liste des équipes</h2>
-                  <span className="count-pill">
-                    {filteredTeams.length} / {totalTeams} équipe{totalTeams > 1 ? "s" : ""}
-                  </span>
+                <div className="table-left-controls">
+                  <div className="table-heading-group">
+                    <h2 className="table-heading">Équipes & Passages</h2>
+                    <span className="count-pill">
+                      {filteredTeams.length} / {totalTeams} équipe{totalTeams > 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  {/* Filter tabs */}
+                  <div className="filter-pill-group">
+                    <button
+                      className={`filter-btn ${filterSubject === "all" ? "filter-active" : ""}`}
+                      onClick={() => setFilterSubject("all")}
+                    >
+                      Toutes ({totalTeams})
+                    </button>
+                    <button
+                      className={`filter-btn ${filterSubject === "needs" ? "filter-active filter-warn" : ""}`}
+                      onClick={() => setFilterSubject("needs")}
+                    >
+                      ⚠️ Sujet à attribuer ({needsSubjectCount})
+                    </button>
+                    <button
+                      className={`filter-btn ${filterSubject === "has" ? "filter-active" : ""}`}
+                      onClick={() => setFilterSubject("has")}
+                    >
+                      ✓ Sujet proposé ({hasSubjectCount})
+                    </button>
+                  </div>
                 </div>
 
-                <div className="search-wrap">
-                  <span className="search-icon">🔍</span>
-                  <input
-                    type="text"
-                    className="search-input"
-                    placeholder="Filtrer par thème, étudiant, email..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  {search && (
-                    <button className="clear-search" onClick={() => setSearch("")}>
-                      ×
+                <div className="table-right-controls">
+                  {/* Sort selector */}
+                  <div className="sort-selector">
+                    <span className="sort-label">Trier par :</span>
+                    <button
+                      className={`sort-btn ${sortBy === "order" ? "sort-active" : ""}`}
+                      onClick={() => setSortBy("order")}
+                    >
+                      Ordre (1-15)
                     </button>
-                  )}
+                    <button
+                      className={`sort-btn ${sortBy === "date" ? "sort-active" : ""}`}
+                      onClick={() => setSortBy("date")}
+                    >
+                      Date
+                    </button>
+                  </div>
+
+                  <div className="search-wrap">
+                    <span className="search-icon"><IconSearch size={14} /></span>
+                    <input
+                      type="text"
+                      className="search-input"
+                      placeholder="Filtrer par thème, nom, #passage..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                    {search && (
+                      <button className="clear-search" onClick={() => setSearch("")} aria-label="Effacer">
+                        <IconClose size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {filteredTeams.length === 0 ? (
                 <div className="empty-state">
-                  <div className="empty-icon">{search ? "🔍" : "📭"}</div>
+                  <div className="empty-icon">
+                    {search ? <IconSearch size={32} /> : <IconEmptyBox size={36} />}
+                  </div>
                   <div className="empty-title">
-                    {search ? "Aucun résultat trouvé" : "Aucune équipe inscrite"}
+                    {search ? "Aucun résultat trouvé" : "Aucune équipe dans cette vue"}
                   </div>
                   <div className="empty-sub">
                     {search
-                      ? `Aucune équipe ne correspond au terme "${search}".`
-                      : "Le formulaire est prêt à recevoir les premières inscriptions."}
+                      ? `Aucune équipe ne correspond à la recherche "${search}".`
+                      : "Toutes les équipes ont été traitées ou aucune équipe n'est inscrite."}
                   </div>
                 </div>
               ) : (
@@ -302,56 +391,88 @@ export default function Admin() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th style={{ width: "50px" }}>#</th>
+                        <th style={{ width: "90px" }}>Passage</th>
+                        <th style={{ width: "170px" }}>Statut Sujet</th>
                         <th>Thème d'audit énergétique</th>
                         <th>Membres de l'équipe</th>
                         <th>Email de contact</th>
-                        <th style={{ width: "160px" }}>Date d'enregistrement</th>
+                        <th style={{ width: "150px" }}>Date d'enregistrement</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTeams.map((t, idx) => (
-                        <tr key={t.id || idx}>
-                          <td className="col-num">
-                            <span className="num-pill">{idx + 1}</span>
-                          </td>
-                          <td className="col-theme">
-                            <div className="theme-title">{t.theme}</div>
-                          </td>
-                          <td className="col-members">
-                            <div className="members-chips">
-                              {t.members && t.members.map((m, j) => (
-                                <span key={j} className="member-chip">
-                                  {j === 0 && <span className="lead-dot" title="Chef d'équipe">★</span>}
-                                  {m}
+                      {filteredTeams.map((t, idx) => {
+                        const isAwaitingSubject = t.needsSubject || (t.theme || "").toLowerCase().includes("attente");
+                        return (
+                          <tr key={t.id || idx} className={isAwaitingSubject ? "row-awaiting-subject" : ""}>
+                            <td className="col-order">
+                              {t.presentationOrder ? (
+                                <span className="order-pill">
+                                  #{t.presentationOrder}
                                 </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="col-email">
-                            {t.email ? (
-                              <a href={`mailto:${t.email}`} className="email-link">
-                                {t.email}
-                              </a>
-                            ) : (
-                              <span className="dash">—</span>
-                            )}
-                          </td>
-                          <td className="col-date">
-                            <span className="date-text">
-                              {t.submittedAt
-                                ? new Date(t.submittedAt).toLocaleString("fr-FR", {
-                                    day: "2-digit",
-                                    month: "short",
-                                    year: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })
-                                : "—"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                              ) : (
+                                <span className="order-unassigned">Non défini</span>
+                              )}
+                            </td>
+                            <td className="col-status">
+                              {isAwaitingSubject ? (
+                                <span className="status-badge-warn" title="Cette équipe attend que l'enseignant lui propose un sujet d'audit">
+                                  <span className="warn-dot">●</span>
+                                  <span>À attribuer par le prof</span>
+                                </span>
+                              ) : (
+                                <span className="status-badge-ok">
+                                  <span>✓ Proposé par l'équipe</span>
+                                </span>
+                              )}
+                            </td>
+                            <td className="col-theme">
+                              {isAwaitingSubject ? (
+                                <div className="theme-awaiting">
+                                  <em>En attente d'une proposition de l'enseignant</em>
+                                </div>
+                              ) : (
+                                <div className="theme-title">{t.theme}</div>
+                              )}
+                            </td>
+                            <td className="col-members">
+                              <div className="members-chips">
+                                {t.members && t.members.map((m, j) => (
+                                  <span key={j} className="member-chip">
+                                    {j === 0 && (
+                                      <span className="lead-star" title="Chef d'équipe">
+                                        <IconStar size={11} />
+                                      </span>
+                                    )}
+                                    {m}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="col-email">
+                              {t.email ? (
+                                <a href={`mailto:${t.email}`} className="email-link">
+                                  {t.email}
+                                </a>
+                              ) : (
+                                <span className="dash">—</span>
+                              )}
+                            </td>
+                            <td className="col-date">
+                              <span className="date-text">
+                                {t.submittedAt
+                                  ? new Date(t.submittedAt).toLocaleString("fr-FR", {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "—"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -375,7 +496,7 @@ export default function Admin() {
 
         .content {
           flex: 1;
-          max-width: 1120px;
+          max-width: 1160px;
           width: 100%;
           margin: 0 auto;
           padding: 28px 20px 56px;
@@ -405,7 +526,7 @@ export default function Admin() {
         }
 
         .auth-text {
-          max-width: 540px;
+          max-width: 560px;
         }
 
         .badge-row {
@@ -413,6 +534,7 @@ export default function Admin() {
           align-items: center;
           gap: 8px;
           margin-bottom: 10px;
+          flex-wrap: wrap;
         }
 
         .badge {
@@ -464,9 +586,11 @@ export default function Admin() {
 
         .lock-icon {
           position: absolute;
-          left: 12px;
-          font-size: 0.82rem;
-          opacity: 0.6;
+          left: 11px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #727b75;
           pointer-events: none;
         }
 
@@ -493,6 +617,12 @@ export default function Admin() {
           display: flex;
           align-items: center;
           gap: 8px;
+        }
+
+        .btn-icon-text {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
         }
 
         .btn-primary {
@@ -593,7 +723,9 @@ export default function Admin() {
         }
 
         .placeholder-icon {
-          font-size: 2.2rem;
+          color: #15803d;
+          display: flex;
+          justify-content: center;
           margin-bottom: 6px;
         }
 
@@ -606,7 +738,7 @@ export default function Admin() {
         .placeholder-sub {
           font-size: 0.85rem;
           color: #717a74;
-          max-width: 440px;
+          max-width: 480px;
         }
 
         /* ── Dashboard Layout ── */
@@ -641,6 +773,13 @@ export default function Admin() {
           flex-wrap: wrap;
         }
 
+        .table-left-controls {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+
         .table-heading-group {
           display: flex;
           align-items: center;
@@ -662,6 +801,83 @@ export default function Admin() {
           border-radius: 999px;
         }
 
+        .filter-pill-group {
+          display: flex;
+          background: #f2efe7;
+          padding: 3px;
+          border-radius: 8px;
+          gap: 3px;
+        }
+
+        .filter-btn {
+          border: none;
+          background: transparent;
+          font-size: 0.76rem;
+          font-weight: 500;
+          color: #555e57;
+          padding: 5px 10px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-family: inherit;
+        }
+
+        .filter-btn:hover {
+          color: #1b201d;
+        }
+
+        .filter-active {
+          background: #ffffff;
+          color: #15803d;
+          font-weight: 700;
+          box-shadow: 0 1px 3px rgba(30, 25, 15, 0.08);
+        }
+
+        .filter-warn.filter-active {
+          color: #b45309;
+        }
+
+        .table-right-controls {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .sort-selector {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          background: #faf9f6;
+          border: 1px solid #dedbd0;
+          padding: 2px 4px;
+          border-radius: 8px;
+        }
+
+        .sort-label {
+          font-size: 0.72rem;
+          color: #7b837d;
+          margin-left: 4px;
+        }
+
+        .sort-btn {
+          border: none;
+          background: transparent;
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: #636b65;
+          padding: 4px 8px;
+          border-radius: 5px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-family: inherit;
+        }
+
+        .sort-active {
+          background: #18211b;
+          color: #ffffff;
+        }
+
         .search-wrap {
           position: relative;
           display: flex;
@@ -670,9 +886,11 @@ export default function Admin() {
 
         .search-icon {
           position: absolute;
-          left: 12px;
-          font-size: 0.8rem;
-          opacity: 0.5;
+          left: 11px;
+          display: flex;
+          align-items: center;
+          color: #7d857f;
+          pointer-events: none;
         }
 
         .search-input {
@@ -683,7 +901,7 @@ export default function Admin() {
           font-family: inherit;
           color: #1b201d;
           background: #faf9f6;
-          width: 260px;
+          width: 250px;
           outline: none;
           transition: all 0.16s ease;
         }
@@ -697,12 +915,22 @@ export default function Admin() {
         .clear-search {
           position: absolute;
           right: 8px;
-          background: none;
+          background: #eae5dc;
           border: none;
-          color: #8b938d;
-          font-size: 1rem;
+          color: #616a64;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
           cursor: pointer;
-          padding: 0 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.15s ease;
+        }
+
+        .clear-search:hover {
+          background: #ded7ca;
+          color: #1b201d;
         }
 
         .table-scroll {
@@ -739,25 +967,70 @@ export default function Admin() {
           background: #faf9f6;
         }
 
+        .row-awaiting-subject {
+          background: #fffdf7;
+        }
+
         .data-table td {
           padding: 14px 18px;
           vertical-align: middle;
         }
 
-        .col-num {
+        .col-order {
           text-align: center;
         }
 
-        .num-pill {
+        .order-pill {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 24px;
-          height: 24px;
-          background: #f1ede3;
-          color: #555e58;
-          font-size: 0.72rem;
+          padding: 4px 10px;
+          background: #18211b;
+          color: #ffffff;
+          font-size: 0.82rem;
           font-weight: 700;
+          border-radius: 7px;
+          box-shadow: 0 1px 3px rgba(24, 33, 27, 0.18);
+        }
+
+        .order-unassigned {
+          font-size: 0.75rem;
+          color: #949c95;
+          font-style: italic;
+        }
+
+        .col-status {
+          white-space: nowrap;
+        }
+
+        .status-badge-warn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #fef3c7;
+          border: 1px solid #fde68a;
+          color: #92400e;
+          font-size: 0.74rem;
+          font-weight: 700;
+          padding: 3px 9px;
+          border-radius: 6px;
+        }
+
+        .warn-dot {
+          color: #d97706;
+          font-size: 0.7rem;
+        }
+
+        .status-badge-ok {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #eaf5ee;
+          border: 1px solid #cde7d6;
+          color: #15803d;
+          font-size: 0.74rem;
+          font-weight: 600;
+          padding: 3px 9px;
           border-radius: 6px;
         }
 
@@ -765,20 +1038,25 @@ export default function Admin() {
           font-weight: 600;
           color: #181d1a;
           line-height: 1.4;
-          max-width: 300px;
+          max-width: 280px;
+        }
+
+        .theme-awaiting {
+          color: #92400e;
+          font-size: 0.82rem;
         }
 
         .members-chips {
           display: flex;
           flex-wrap: wrap;
           gap: 6px;
-          max-width: 320px;
+          max-width: 300px;
         }
 
         .member-chip {
           display: inline-flex;
           align-items: center;
-          gap: 4px;
+          gap: 5px;
           background: #f4f2ea;
           border: 1px solid #e5e1d5;
           color: #2b332d;
@@ -788,9 +1066,10 @@ export default function Admin() {
           border-radius: 6px;
         }
 
-        .lead-dot {
+        .lead-star {
           color: #d97706;
-          font-size: 0.75rem;
+          display: inline-flex;
+          align-items: center;
         }
 
         .email-link {
@@ -821,11 +1100,14 @@ export default function Admin() {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
         }
 
         .empty-icon {
-          font-size: 2rem;
+          color: #8f9791;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           margin-bottom: 4px;
         }
 
@@ -858,6 +1140,10 @@ export default function Admin() {
           }
           .search-input {
             width: 100%;
+          }
+          .filter-pill-group {
+            width: 100%;
+            overflow-x: auto;
           }
         }
       `}</style>
