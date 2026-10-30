@@ -77,6 +77,27 @@ export default function Home() {
       return;
     }
 
+    // Vérifier les membres saisis (doublons internes)
+    const validMembers = members.map((m) => m.trim()).filter(Boolean);
+    const normalized = validMembers.map((m) =>
+      m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ")
+    );
+    const hasInternalDuplicates = validMembers.some(
+      (m, idx) =>
+        normalized.indexOf(
+          m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ")
+        ) !== idx
+    );
+    if (hasInternalDuplicates) {
+      setStatus({
+        loading: false,
+        msg: "Veuillez vérifier les membres : le même nom ne peut pas être saisi plusieurs fois dans votre équipe.",
+        ok: false,
+        submittedData: null,
+      });
+      return;
+    }
+
     setStatus({ loading: true, msg: "", ok: null, submittedData: null });
 
     try {
