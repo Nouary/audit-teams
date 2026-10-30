@@ -1,4 +1,4 @@
-import { kv } from "../../lib/kv";
+import { getTeams } from "../../lib/sheets";
 
 export default async function handler(req, res) {
   const { password } = req.query;
@@ -8,14 +8,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const raw = await kv.hgetall("teams");
-    const teams = Object.values(raw || {}).map((v) =>
-      typeof v === "string" ? JSON.parse(v) : v
-    );
+    const teams = await getTeams();
     teams.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
     return res.status(200).json({ teams });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Erreur serveur." });
+    console.error("Erreur lors de la récupération des équipes:", err);
+    return res.status(500).json({ error: "Erreur serveur Google Sheets." });
   }
 }

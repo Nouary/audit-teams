@@ -1,4 +1,4 @@
-import { kv } from "../../lib/kv";
+import { saveTeam } from "../../lib/sheets";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -30,14 +30,13 @@ export default async function handler(req, res) {
   };
 
   try {
-    // Chaque equipe est stockee comme un champ dans un hash KV "teams"
-    await kv.hset("teams", { [entry.id]: JSON.stringify(entry) });
+    await saveTeam(entry);
     return res.status(200).json({ ok: true, entry });
   } catch (err) {
-    console.error(err);
+    console.error("Erreur lors de l'enregistrement de l'équipe:", err);
     return res.status(500).json({
       error:
-        "Erreur serveur. Verifie que la base Vercel KV est bien connectee au projet.",
+        "Erreur lors de l'enregistrement dans Google Sheets. Vérifiez la configuration.",
     });
   }
 }

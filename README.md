@@ -1,69 +1,129 @@
-# M357 : Efficacite et Audit Energetique - Inscription des equipes
+# M357 : Efficacité et Audit Énergétique - Inscription des équipes
 
-Formulaire web pour que les equipes (3 ou 4 personnes) s'inscrivent avec leur
-theme, + page admin pour consulter la liste et telecharger un fichier Excel
-a partager avec le prof.
+Application web permettant aux équipes (3 ou 4 étudiants) de s'inscrire en choisissant leur thème d'audit. Les données sont automatiquement enregistrées dans **Google Sheets**, avec une page d'administration (`/admin`) pour consulter les inscriptions et exporter la liste au format Excel `.xlsx`.
 
-## Structure
-- `pages/index.js` — formulaire public (/)
-- `pages/admin.js` — page admin protegee par mot de passe (/admin)
-- `pages/api/submit.js` — enregistre une equipe
-- `pages/api/teams.js` — liste les equipes (admin)
-- `pages/api/export.js` — genere et telecharge le fichier .xlsx (admin)
+---
 
-Les donnees sont stockees dans **Vercel KV** (base cle-valeur gratuite, native
-a Vercel), donc rien a configurer cote base de donnees classique.
+## 📁 Structure du projet
 
-## 1. Pousser le projet sur GitHub
+- `pages/index.js` — Formulaire public d'inscription (`/`)
+- `pages/admin.js` — Dashboard administrateur protégé par mot de passe (`/admin`)
+- `pages/api/submit.js` — Enregistre une nouvelle équipe dans Google Sheets
+- `pages/api/teams.js` — Récupère la liste des équipes depuis Google Sheets
+- `pages/api/export.js` — Génère et télécharge le fichier `.xlsx` formaté
+- `lib/sheets.js` — Gestionnaire de connexion à Google Sheets (avec mode local hors-ligne automatique)
 
-```bash
-cd audit-teams
-git init
-git add .
-git commit -m "Formulaire inscription equipes audit"
-git branch -M main
-git remote add origin https://github.com/<ton-user>/audit-teams.git
-git push -u origin main
-```
+---
 
-(Cree d'abord un repo vide sur GitHub avec le meme nom, sans README ni
-.gitignore pour eviter les conflits.)
+## 📊 Colonnes créées dans Google Sheets
 
-## 2. Deployer sur Vercel
+| Colonne A | Colonne B | Colonne C | Colonne D | Colonne E | Colonne F | Colonne G | Colonne H |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Date d'inscription** | **ID Equipe** | **Thème** | **Membre 1** | **Membre 2** | **Membre 3** | **Membre 4** | **Email de contact** |
 
-1. Va sur https://vercel.com, connecte-toi avec GitHub.
-2. "Add New..." → "Project" → importe le repo `audit-teams`.
-3. Laisse les reglages par defaut (Framework: Next.js) → **Deploy**.
+---
 
-## 3. Ajouter la base Vercel KV
+## ⚙️ Configuration de Google Sheets
 
-1. Dans le dashboard du projet sur Vercel → onglet **Storage**.
-2. **Create Database** → choisis **KV** (Redis) → nomme-la par ex. `teams-kv`.
-3. Connecte-la a ton projet quand c'est propose (bouton "Connect Project").
-   Vercel ajoute automatiquement les variables `KV_REST_API_URL` et
-   `KV_REST_API_TOKEN` dans les Environment Variables du projet.
+Vous pouvez connecter Google Sheets de **deux manières** (au choix) :
 
-## 4. Ajouter le mot de passe admin
+### Option 1 : Compte de Service Google Cloud (Recommandé)
 
-1. Dans le projet Vercel → **Settings** → **Environment Variables**.
-2. Ajoute `ADMIN_PASSWORD` = choisis un mot de passe (ex: `audit2026`).
-3. **Redeploy** le projet (Deployments → ... → Redeploy) pour que la variable
-   soit prise en compte.
+1. **Créer une feuille Google Sheets** :
+   - Rendez-vous sur [sheets.new](https://sheets.new).
+   - Récupérez l'identifiant dans l'URL : `https://docs.google.com/spreadsheets/d/`**`<VOTRE_SHEET_ID>`**`/edit`.
 
-## 5. Utilisation
+2. **Créer un compte de service Google Cloud** :
+   - Allez sur [Google Cloud Console](https://console.cloud.google.com/).
+   - Activez l'API **Google Sheets API** (APIs & Services > Enable APIs).
+   - Créez un compte de service (IAM & Admin > Service Accounts > Create Service Account).
+   - Créez une clé au format JSON (Keys > Add Key > Create new key > JSON) et téléchargez-la.
 
-- Partage le lien `https://ton-projet.vercel.app/` aux etudiants pour
-  qu'ils remplissent le formulaire.
-- Toi, va sur `https://ton-projet.vercel.app/admin`, entre le mot de passe,
-  clique "Afficher les equipes" pour verifier, puis "Telecharger Excel"
-  pour recuperer le fichier `.xlsx` a envoyer au prof.
+3. **Partager la feuille Google Sheets** :
+   - Ouvrez votre Google Sheet et cliquez sur **Partager**.
+   - Ajoutez l'adresse email du compte de service (ex: `service-account@projet.iam.gserviceaccount.com`) avec le rôle **Éditeur**.
 
-## Test en local (optionnel)
+4. **Variables d'environnement** :
+   Dans `.env.local` (ou dans Vercel > Settings > Environment Variables) :
+   ```env
+   GOOGLE_SHEET_ID=votre_sheet_id
+   GOOGLE_CLIENT_EMAIL=votre_email_service_account
+   GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+   ADMIN_PASSWORD=choisissez_un_mot_de_passe
+   ```
+
+---
+
+### Option 2 : Google Apps Script Webhook (Sans compte Google Cloud)
+
+Si vous ne souhaitez pas créer de projet Google Cloud :
+
+1. Ouvrez votre feuille Google Sheets.
+2. Cliquez sur **Extensions** > **Apps Script**.
+3. Remplacez le code existant par le script suivant :
+   ```javascript
+   function doPost(e) {
+     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+     if (sheet.getLastRow() === 0) {
+       sheet.appendRow(["Date d'inscription", "ID Equipe", "Thème", "Membre 1", "Membre 2", "Membre 3", "Membre 4", "Email de contact"]);
+     }
+     var data = JSON.parse(e.postData.contents);
+     sheet.appendRow([
+       new Date().toLocaleString("fr-FR"),
+       data.id,
+       data.theme,
+       data.members[0] || "",
+       data.members[1] || "",
+       data.members[2] || "",
+       data.members[3] || "",
+       data.email || ""
+     ]);
+     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+   }
+
+   function doGet(e) {
+     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+     var rows = sheet.getDataRange().getValues();
+     var teams = [];
+     for (var i = 1; i < rows.length; i++) {
+       var r = rows[i];
+       teams.push({
+         submittedAt: r[0],
+         id: r[1],
+         theme: r[2],
+         members: [r[3], r[4], r[5], r[6]].filter(Boolean),
+         email: r[7]
+       });
+     }
+     return ContentService.createTextOutput(JSON.stringify({ teams: teams })).setMimeType(ContentService.MimeType.JSON);
+   }
+   ```
+4. Cliquez sur **Déployer** > **Nouveau déploiement**.
+5. Type : **Application Web**.
+   - Exécuter en tant que : **Moi**.
+   - Qui a accès : **Tout le monde** (Anyone).
+6. Copiez l'URL fournie et configurez-la dans votre `.env.local` :
+   ```env
+   GOOGLE_SHEET_WEBHOOK_URL=https://script.google.com/macros/s/.../exec
+   ADMIN_PASSWORD=choisissez_un_mot_de_passe
+   ```
+
+---
+
+## 💻 Test en local
 
 ```bash
 npm install
-# cree un fichier .env.local avec KV_REST_API_URL, KV_REST_API_TOKEN
-# (copie-les depuis Vercel > Storage > ta KV > onglet .env.local)
-# + ADMIN_PASSWORD=ton-mdp
 npm run dev
 ```
+
+> **Remarque** : Si aucune clé Google Sheets n'est renseignée dans `.env.local`, l'application active automatiquement un mode local de secours et stocke temporairement les soumissions dans un fichier local pour vous permettre de tester immédiatement à l'adresse [http://localhost:3000](http://localhost:3000).
+
+---
+
+## 🚀 Déploiement sur Vercel
+
+1. Rendez-vous sur [vercel.com](https://vercel.com) et connectez votre compte GitHub.
+2. Importez le dépôt `audit-teams`.
+3. Renseignez les variables d'environnement (`GOOGLE_SHEET_ID`, `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY` ou `GOOGLE_SHEET_WEBHOOK_URL`, ainsi que `ADMIN_PASSWORD`).
+4. Cliquez sur **Deploy**.

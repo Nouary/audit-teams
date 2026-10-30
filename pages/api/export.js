@@ -1,4 +1,4 @@
-import { kv } from "../../lib/kv";
+import { getTeams } from "../../lib/sheets";
 import * as XLSX from "xlsx";
 
 export default async function handler(req, res) {
@@ -9,10 +9,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const raw = await kv.hgetall("teams");
-    const teams = Object.values(raw || {}).map((v) =>
-      typeof v === "string" ? JSON.parse(v) : v
-    );
+    const teams = await getTeams();
     teams.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
 
     const rows = teams.map((t, i) => ({
