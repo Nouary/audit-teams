@@ -1,25 +1,13 @@
 import { useState } from "react";
 import Head from "next/head";
-
-// Inline SVG logo — bolt + circuit, ENSA Fès energy theme
-function Logo({ size = 40 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="24" cy="24" r="24" fill="#1a2744"/>
-      <path d="M27 6L14 26h10l-3 16 17-22H28L27 6z" fill="#22c55e"/>
-      <circle cx="10" cy="38" r="2" fill="#22c55e" opacity="0.5"/>
-      <circle cx="38" cy="10" r="2" fill="#22c55e" opacity="0.5"/>
-      <line x1="12" y1="38" x2="18" y2="38" stroke="#22c55e" strokeWidth="1.5" opacity="0.4"/>
-      <line x1="30" y1="10" x2="36" y2="10" stroke="#22c55e" strokeWidth="1.5" opacity="0.4"/>
-    </svg>
-  );
-}
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
 export default function Home() {
   const [theme, setTheme] = useState("");
   const [email, setEmail] = useState("");
   const [members, setMembers] = useState(["", "", "", ""]);
-  const [status, setStatus] = useState({ loading: false, msg: "", ok: null });
+  const [status, setStatus] = useState({ loading: false, msg: "", ok: null, submittedData: null });
 
   const updateMember = (i, value) => {
     const next = [...members];
@@ -29,25 +17,27 @@ export default function Home() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus({ loading: true, msg: "", ok: null });
+    setStatus({ loading: true, msg: "", ok: null, submittedData: null });
 
     try {
+      const payload = { theme, members, email };
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, members, email }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setStatus({ loading: false, msg: data.error, ok: false });
+        setStatus({ loading: false, msg: data.error, ok: false, submittedData: null });
         return;
       }
 
       setStatus({
         loading: false,
-        msg: "Équipe enregistrée avec succès ! ✓",
+        msg: "Votre équipe a été enregistrée avec succès !",
         ok: true,
+        submittedData: payload,
       });
       setTheme("");
       setEmail("");
@@ -55,285 +45,494 @@ export default function Home() {
     } catch (err) {
       setStatus({
         loading: false,
-        msg: "Erreur réseau, veuillez réessayer.",
+        msg: "Erreur réseau, veuillez vérifier votre connexion et réessayer.",
         ok: false,
+        submittedData: null,
       });
     }
   };
 
   return (
-    <div className="container">
+    <div className="layout">
       <Head>
-        <title>M357 – Inscription des Équipes | ENSA Fès</title>
-        <meta name="description" content="Formulaire d'inscription des équipes pour le module M357 Efficacité et Audit Énergétique – ENSA Fès" />
+        <title>M357 – Inscription des équipes | ENSA Fès</title>
+        <meta
+          name="description"
+          content="Formulaire d'inscription des équipes pour le module M357 Efficacité et Audit Énergétique – ENSA Fès"
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
       </Head>
 
-      <main className="card">
-        {/* Header */}
-        <div className="header">
-          <Logo size={48} />
-          <div className="header-text">
-            <span className="school">ENSA Fès — Génie Électrique & Systèmes Intelligents</span>
-            <span className="module-tag">M357 : Efficacité et Audit Énergétique</span>
-          </div>
-        </div>
+      <Navbar activeTab="form" />
 
-        <div className="divider" />
-
-        <h1>Inscription des Équipes</h1>
-        <p className="subtitle">
-          Chaque équipe (3 ou 4 étudiants) choisit un thème d'audit et remplit ce formulaire <strong>une seule fois</strong>.
-        </p>
-
-        <form onSubmit={handleSubmit}>
-          <label>
-            <span>Thème choisi <span className="req">*</span></span>
-            <input
-              type="text"
-              value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              placeholder="Ex : Audit énergétique d'un bâtiment industriel"
-              required
-            />
-          </label>
-
-          <fieldset>
-            <legend>Membres de l'équipe <span className="hint">(3 obligatoires, 4ème optionnel)</span></legend>
-            {members.map((m, i) => (
-              <input
-                key={i}
-                type="text"
-                value={m}
-                onChange={(e) => updateMember(i, e.target.value)}
-                placeholder={`Membre ${i + 1}${i < 3 ? " *" : " (optionnel)"}`}
-                required={i < 3}
-              />
-            ))}
-          </fieldset>
-
-          <label>
-            <span>Email de contact <span className="hint">(optionnel)</span></span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="prenom.nom@usmba.ac.ma"
-            />
-          </label>
-
-          <button type="submit" disabled={status.loading}>
-            {status.loading ? (
-              <span className="btn-loading"><span className="spinner" /> Envoi en cours...</span>
-            ) : (
-              "Valider mon équipe →"
-            )}
-          </button>
-
-          {status.msg && (
-            <div className={status.ok ? "alert-success" : "alert-error"}>
-              {status.msg}
+      <main className="content">
+        <div className="card">
+          <div className="card-top">
+            <div className="badge-row">
+              <span className="badge">M357 · Audit Énergétique</span>
+              <span className="badge-light">3 à 4 étudiants</span>
             </div>
-          )}
-        </form>
+            <h1 className="title">Inscription des équipes</h1>
+            <p className="subtitle">
+              Chaque groupe soumet ce formulaire <strong>une seule fois</strong> pour valider le thème
+              choisi et la liste des membres. Les données sont directement synchronisées avec l'enseignant.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="field-group">
+              <label htmlFor="theme" className="label">
+                <span>Thème de l'audit énergétique <span className="req">*</span></span>
+                <span className="hint">Sujet convenu ou proposé</span>
+              </label>
+              <input
+                id="theme"
+                type="text"
+                className="input"
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                placeholder="Ex. : Audit énergétique d'une cimenterie / chaîne de production"
+                required
+              />
+            </div>
+
+            <div className="members-box">
+              <div className="members-box-header">
+                <div>
+                  <div className="members-box-title">Composition du groupe <span className="req">*</span></div>
+                  <div className="members-box-sub">3 membres obligatoires, 4ème optionnel</div>
+                </div>
+                <span className="members-count-badge">
+                  {members.filter((m) => m.trim().length > 0).length} / 4
+                </span>
+              </div>
+
+              <div className="members-inputs">
+                {members.map((m, i) => (
+                  <div key={i} className="member-input-row">
+                    <span className="member-index">{i + 1}</span>
+                    <input
+                      type="text"
+                      className="input input-member"
+                      value={m}
+                      onChange={(e) => updateMember(i, e.target.value)}
+                      placeholder={
+                        i === 0
+                          ? "Nom & Prénom (Chef d'équipe) *"
+                          : i < 3
+                          ? `Membre ${i + 1} *`
+                          : "Membre 4 (optionnel)"
+                      }
+                      required={i < 3}
+                    />
+                    {i < 3 && <span className="tag-required">Requis</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="field-group">
+              <label htmlFor="email" className="label">
+                <span>Email de contact académique</span>
+                <span className="hint">Optionnel mais conseillé pour les retours</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                className="input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="prenom.nom@usmba.ac.ma"
+              />
+            </div>
+
+            <button type="submit" className="submit-btn" disabled={status.loading}>
+              {status.loading ? (
+                <span className="btn-inner">
+                  <span className="spinner" />
+                  <span>Enregistrement en cours...</span>
+                </span>
+              ) : (
+                <span className="btn-inner">
+                  <span>Enregistrer l'équipe</span>
+                  <span className="arrow">→</span>
+                </span>
+              )}
+            </button>
+
+            {status.msg && (
+              <div className={status.ok ? "alert-success" : "alert-error"}>
+                <div className="alert-head">
+                  <span className="alert-icon">{status.ok ? "✓" : "!"}</span>
+                  <span className="alert-title">{status.msg}</span>
+                </div>
+                {status.submittedData && (
+                  <div className="alert-details">
+                    <div><strong>Thème :</strong> {status.submittedData.theme}</div>
+                    <div>
+                      <strong>Membres :</strong>{" "}
+                      {status.submittedData.members.filter((m) => m.trim()).join(", ")}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </form>
+        </div>
       </main>
 
-      <footer className="footer">
-        ENSA Fès · Module M357 · Année Universitaire 2025–2026
-      </footer>
+      <Footer />
 
       <style jsx>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        .container {
+        .layout {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
+          background: #faf9f5;
+          font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+          color: #1f2421;
+        }
+
+        .content {
+          flex: 1;
+          display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #f0f4ff 0%, #e8f5e9 100%);
-          padding: 24px;
-          font-family: 'Inter', system-ui, sans-serif;
+          padding: 40px 20px 56px;
         }
 
         .card {
-          background: #fff;
-          border-radius: 16px;
-          box-shadow: 0 4px 24px rgba(26,39,68,0.10);
-          padding: 36px 32px;
-          max-width: 500px;
           width: 100%;
+          max-width: 560px;
+          background: #ffffff;
+          border: 1px solid #e8e5dc;
+          border-radius: 18px;
+          padding: 38px 34px;
+          box-shadow: 0 2px 6px rgba(30, 25, 15, 0.03), 0 12px 32px rgba(30, 25, 15, 0.05);
         }
 
-        .header {
+        .card-top {
+          margin-bottom: 26px;
+        }
+
+        .badge-row {
           display: flex;
           align-items: center;
-          gap: 14px;
-          margin-bottom: 20px;
+          gap: 8px;
+          margin-bottom: 14px;
+          flex-wrap: wrap;
         }
 
-        .header-text {
-          display: flex;
-          flex-direction: column;
-          gap: 3px;
-        }
-
-        .school {
-          font-size: 0.78rem;
+        .badge {
+          background: #eaf5ee;
+          color: #15803d;
+          font-size: 0.72rem;
           font-weight: 700;
-          color: #1a2744;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-        }
-
-        .module-tag {
-          font-size: 0.75rem;
-          color: #22c55e;
-          font-weight: 600;
           letter-spacing: 0.02em;
+          padding: 4px 10px;
+          border-radius: 999px;
+          border: 1px solid #cde7d6;
         }
 
-        .divider {
-          height: 1px;
-          background: #f0f0f0;
-          margin-bottom: 20px;
+        .badge-light {
+          background: #f4f2ea;
+          color: #636b65;
+          font-size: 0.72rem;
+          font-weight: 600;
+          padding: 4px 10px;
+          border-radius: 999px;
         }
 
-        h1 {
-          font-size: 1.45rem;
+        .title {
+          font-size: 1.55rem;
           font-weight: 700;
-          color: #1a2744;
-          margin-bottom: 6px;
+          letter-spacing: -0.02em;
+          color: #181d19;
+          margin-bottom: 8px;
+          line-height: 1.25;
         }
 
         .subtitle {
-          color: #64748b;
-          font-size: 0.875rem;
-          margin-bottom: 22px;
-          line-height: 1.5;
+          font-size: 0.88rem;
+          color: #5d6560;
+          line-height: 1.55;
         }
 
         form {
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 20px;
         }
 
-        label {
+        .field-group {
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #374151;
+          gap: 7px;
         }
 
-        .req { color: #ef4444; }
-        .hint { font-weight: 400; color: #9ca3af; font-size: 0.8rem; }
+        .label {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.84rem;
+          font-weight: 600;
+          color: #2b332e;
+        }
 
-        fieldset {
-          border: 1.5px solid #e5e7eb;
+        .req {
+          color: #dc2626;
+          margin-left: 2px;
+        }
+
+        .hint {
+          font-size: 0.74rem;
+          color: #838c85;
+          font-weight: 400;
+        }
+
+        .input {
+          width: 100%;
+          padding: 11px 14px;
+          border: 1.5px solid #dedbd0;
           border-radius: 10px;
-          padding: 14px;
+          font-size: 0.9rem;
+          font-family: inherit;
+          color: #1b201d;
+          background: #ffffff;
+          transition: all 0.16s ease;
+          outline: none;
+        }
+
+        .input:hover {
+          border-color: #cac5b7;
+        }
+
+        .input:focus {
+          border-color: #15803d;
+          box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.12);
+        }
+
+        .input::placeholder {
+          color: #9fa7a1;
+        }
+
+        /* ── Members container ── */
+        .members-box {
+          border: 1px solid #e8e5dc;
+          background: #faf9f6;
+          border-radius: 14px;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .members-box-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .members-box-title {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: #242c27;
+        }
+
+        .members-box-sub {
+          font-size: 0.74rem;
+          color: #717a74;
+        }
+
+        .members-count-badge {
+          font-size: 0.75rem;
+          font-weight: 700;
+          background: #ede9df;
+          color: #4a524c;
+          padding: 3px 8px;
+          border-radius: 6px;
+        }
+
+        .members-inputs {
           display: flex;
           flex-direction: column;
           gap: 8px;
         }
 
-        legend {
-          font-size: 0.875rem;
+        .member-input-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          position: relative;
+        }
+
+        .member-index {
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #e8e4da;
+          color: #555e58;
+          border-radius: 50%;
+          font-size: 0.74rem;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+        .input-member {
+          background: #ffffff;
+          padding-right: 60px;
+        }
+
+        .tag-required {
+          position: absolute;
+          right: 12px;
+          font-size: 0.68rem;
           font-weight: 600;
-          color: #374151;
-          padding: 0 6px;
+          color: #8c948e;
+          background: #f4f2eb;
+          padding: 2px 6px;
+          border-radius: 4px;
+          pointer-events: none;
         }
 
-        input {
-          padding: 10px 12px;
-          border: 1.5px solid #e5e7eb;
-          border-radius: 8px;
-          font-size: 0.9rem;
-          font-family: 'Inter', system-ui, sans-serif;
-          transition: border-color 0.15s;
-          color: #111827;
-        }
-
-        input:focus {
-          outline: none;
-          border-color: #22c55e;
-          box-shadow: 0 0 0 3px rgba(34,197,94,0.12);
-        }
-
-        button {
-          background: #1a2744;
-          color: white;
+        /* ── Submit Button ── */
+        .submit-btn {
+          width: 100%;
+          padding: 13px 20px;
+          background: #18211b;
+          color: #ffffff;
           border: none;
-          padding: 13px;
-          border-radius: 8px;
-          font-size: 0.95rem;
+          border-radius: 11px;
+          font-size: 0.92rem;
           font-weight: 600;
+          font-family: inherit;
           cursor: pointer;
+          transition: all 0.18s ease;
+          box-shadow: 0 1px 3px rgba(24, 33, 27, 0.2);
           margin-top: 4px;
-          transition: background 0.15s, transform 0.1s;
-          font-family: 'Inter', system-ui, sans-serif;
         }
 
-        button:hover:not(:disabled) {
-          background: #22335a;
+        .submit-btn:hover:not(:disabled) {
+          background: #232f27;
           transform: translateY(-1px);
+          box-shadow: 0 3px 8px rgba(24, 33, 27, 0.25);
         }
 
-        button:disabled {
-          opacity: 0.6;
+        .submit-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+          background: #7a847d;
           cursor: not-allowed;
-          transform: none;
         }
 
-        .btn-loading {
+        .btn-inner {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
         }
 
-        .spinner {
-          width: 14px;
-          height: 14px;
-          border: 2px solid rgba(255,255,255,0.4);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-          display: inline-block;
+        .arrow {
+          font-size: 1.1rem;
+          transition: transform 0.16s ease;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .submit-btn:hover:not(:disabled) .arrow {
+          transform: translateX(3px);
+        }
 
+        .spinner {
+          width: 16px;
+          height: 16px;
+          border: 2px solid rgba(255, 255, 255, 0.35);
+          border-top-color: #ffffff;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        /* ── Alerts ── */
         .alert-success {
           background: #f0fdf4;
-          border: 1.5px solid #86efac;
-          color: #15803d;
-          padding: 12px 14px;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 0.875rem;
+          border: 1px solid #bbf7d0;
+          border-radius: 12px;
+          padding: 14px 16px;
+          color: #14532d;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         }
 
         .alert-error {
           background: #fef2f2;
-          border: 1.5px solid #fca5a5;
-          color: #b91c1c;
-          padding: 12px 14px;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 0.875rem;
+          border: 1px solid #fecaca;
+          border-radius: 12px;
+          padding: 14px 16px;
+          color: #991b1b;
         }
 
-        .footer {
-          margin-top: 20px;
-          font-size: 0.75rem;
-          color: #94a3b8;
-          text-align: center;
+        .alert-head {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .alert-icon {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: currentColor;
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.72rem;
+          font-weight: bold;
+          flex-shrink: 0;
+        }
+
+        .alert-error .alert-icon {
+          background: #dc2626;
+        }
+
+        .alert-success .alert-icon {
+          background: #16a34a;
+        }
+
+        .alert-title {
+          font-size: 0.88rem;
+          font-weight: 600;
+        }
+
+        .alert-details {
+          font-size: 0.8rem;
+          color: #166534;
+          border-top: 1px solid #bbf7d0;
+          padding-top: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        @media (max-width: 600px) {
+          .card {
+            padding: 26px 20px;
+          }
+          .title {
+            font-size: 1.35rem;
+          }
         }
       `}</style>
     </div>
